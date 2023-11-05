@@ -70,7 +70,7 @@ public record AbstractCanFail : ICanFail
 	/// <summary>
 	/// Adds the errors of an <see cref="ICanFail"/> object if it has failed
 	/// </summary>
-	public AbstractCanFail Failed(AbstractCanFail canFailResult)
+	public AbstractCanFail InheritFailure(AbstractCanFail canFailResult)
 	{
 		if (canFailResult.HasFailed) _errors.AddRange(canFailResult.Errors);
 		return this;
