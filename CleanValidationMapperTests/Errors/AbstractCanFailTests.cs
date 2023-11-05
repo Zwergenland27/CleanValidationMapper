@@ -4,7 +4,7 @@ using Moq;
 using CleanValidationMapperTests.TestData;
 using FluentAssertions;
 
-namespace CleanValidationMapperTests.Errors;
+namespace CleanValidationMapperTests;
 
 public class AbstractCanFailTests
 {
@@ -41,7 +41,7 @@ public class AbstractCanFailTests
 		//Act
 		results.ForEach(result =>
 		{
-			finalResult.Failed(result);
+			finalResult.InheritFailure(result);
 		});
 
 		//Assert
