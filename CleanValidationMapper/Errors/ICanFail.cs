@@ -1,4 +1,6 @@
-﻿namespace CleanValidationMapper;
+﻿using CleanValidationMapper.Errors;
+
+namespace CleanValidationMapper;
 
 public interface ICanFail
 {
@@ -11,4 +13,6 @@ public interface ICanFail
 	/// Indicates that one ore more errors have occured
 	/// </summary>
 	public bool HasFailed { get; }
+
+	public FailureType Type { get; }
 }
