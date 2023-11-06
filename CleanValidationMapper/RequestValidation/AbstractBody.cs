@@ -1,36 +1,76 @@
-﻿namespace CleanValidationMapper;
+﻿using System.Linq.Expressions;
+using System.Reflection.Emit;
+
+namespace CleanValidationMapper;
 
 public class AbstractBody<TValidated>
 {
-	List<BodyParameter> _parameters = new();
+	List<Property> _properties = new();
 
-	protected BodyParameterReference<TValidated, TParameter> Parameter<TParameter>(TParameter? parameter) where TParameter : notnull
+	protected RequiredProperty<T> RequiredProperty<T>(Expression<Func<TValidated, T>> propertyExpression) where T : notnull
 	{
-		var bodyParameter = new BodyParameterReference<TValidated, TParameter>(parameter);
-		_parameters.Add(bodyParameter);
-		return bodyParameter;
+		MemberExpression memberExpression = (MemberExpression) propertyExpression.Body;
+		var property = new RequiredProperty<T>(memberExpression.Member.Name);
+		_properties.Add(property);
+		return property;
 	}
 
-	protected BodyParameterStruct<TValidated, TParameter> Parameter<TParameter>(TParameter? parameter) where TParameter : struct
-	{
-		var bodyParameter = new BodyParameterStruct<TValidated, TParameter>(parameter);
-		_parameters.Add(bodyParameter);
-		return bodyParameter;
-	}
+    protected RequiredProperty<T> RequiredProperty<T>(Expression<Func<TValidated, T>> propertyExpression, Action<RequiredProperty<T>> propertyBuilder) where T : notnull
+    {
+        MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
+        var property = new RequiredProperty<T>(memberExpression.Member.Name);
+        propertyBuilder.Invoke(property);
+        _properties.Add(property);
+        return property;
+    }
 
-	public CanFail<TValidated> Validate()
+    protected OptionalProperty<T> OptionalProperty<T>(Expression<Func<TValidated, T?>> propertyExpression) where T : notnull
+    {
+        MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
+        var property = new OptionalProperty<T>(memberExpression.Member.Name);
+        _properties.Add(property);
+        return property;
+    }
+
+    protected OptionalProperty<T> OptionalProperty<T>(Expression<Func<TValidated, T?>> propertyExpression, Action<OptionalProperty<T>> propertyBuilder) where T : notnull
+    {
+        MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
+        var property = new OptionalProperty<T>(memberExpression.Member.Name);
+        propertyBuilder.Invoke(property);
+        _properties.Add(property);
+        return property;
+    }
+
+    public CanFail<TValidated> Validate()
 	{
 		CanFail<TValidated> result = new();
+		Dictionary<string, object?> properties = new();
 
-		_parameters.ForEach(parameter =>
+		_properties.ForEach(property =>
 		{
-			result.InheritFailure(parameter.ValidationResult);
+			var creationResult = property.Create();
+			result.InheritFailure(creationResult);
+			if (!creationResult.HasFailed)
+			{
+				properties.Add(property.Name, creationResult.Value);
+			}
 		});
 
-		if (result.HasFailed) return result;
+        if (result.HasFailed) return result;
 
-		//Construct the TValidated
+        var constructors = typeof(TValidated).GetConstructors();
+        if (constructors.Count() > 1) throw new InvalidOperationException($"{typeof(TValidated)} can only have one constructor");
 
-		return result;
-	}
+        var constructorParameters = constructors[0].GetParameters();
+
+        object?[] parameters = new object?[constructorParameters.Length];
+
+        foreach (var parameter in constructorParameters)
+        {
+            if (parameter.Name is null) continue;
+            parameters[parameter.Position] = properties.GetValueOrDefault(parameter.Name);
+        }
+
+        return (TValidated)Activator.CreateInstance(typeof(TValidated), parameters)!;
+    }
 }
