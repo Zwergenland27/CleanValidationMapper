@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace CleanValidationMapper;
+namespace CleanValidationMapper.RequestValidation;
 
 public abstract class OptionalProperty<T> : Property<T>
 {
@@ -13,7 +13,7 @@ public abstract class OptionalProperty<T> : Property<T>
 
     private bool IsRequiredProperty(Type propertyType)
     {
-        return (propertyType.Name == typeof(RequiredReferenceProperty<>).Name);
+        return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
     }
 
     protected Dictionary<string, object?> CreateProperties(CanFail<object?> result, ref bool missingRequired)
@@ -22,7 +22,7 @@ public abstract class OptionalProperty<T> : Property<T>
 
         bool missingRequiredLocal = false;
 
-        foreach(var property in Properties)
+        foreach (var property in Properties)
         {
             var creationResult = property.Create();
             result.InheritFailure(creationResult);
@@ -90,7 +90,7 @@ public class OptionalReferenceProperty<T> : OptionalProperty<T>
         var properties = CreateProperties(result, ref missingRequired);
         if (result.HasFailed) return result;
 
-        if(missingRequired) return default(T);
+        if (missingRequired) return default(T);
 
         return CreateInstance(properties);
     }

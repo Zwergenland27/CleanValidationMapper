@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace CleanValidationMapper;
+namespace CleanValidationMapper.RequestValidation;
 
 public abstract class Property
 {
@@ -43,11 +43,11 @@ public abstract class Property<T> : Property
     {
         if (_multipleConstructors) throw new InvalidOperationException($"{typeof(T)} can only have one constructor");
 
-        if(_constructor.GetParameters().Count() > _properties.Count())
+        if (_constructor.GetParameters().Count() > _properties.Count())
         {
             string missingProperties = "";
 
-            foreach(var parameter in _constructor.GetParameters())
+            foreach (var parameter in _constructor.GetParameters())
             {
                 if (!_properties.Any(p => p.Name == parameter.Name)) missingProperties += $"{Environment.NewLine}{typeof(T)}.{parameter.Name}";
             }

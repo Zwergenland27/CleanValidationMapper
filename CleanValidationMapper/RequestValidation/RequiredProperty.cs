@@ -1,6 +1,7 @@
-﻿using System.Linq.Expressions;
+﻿using CleanValidationMapper.Errors;
+using System.Linq.Expressions;
 
-namespace CleanValidationMapper;
+namespace CleanValidationMapper.RequestValidation;
 
 public abstract class RequiredProperty<T> : Property<T>
 {
@@ -23,7 +24,7 @@ public abstract class RequiredProperty<T> : Property<T>
     {
         Dictionary<string, object?> properties = new();
 
-        foreach(var property in Properties)
+        foreach (var property in Properties)
         {
             var creationResult = property.Create();
             result.InheritFailure(creationResult);
@@ -79,7 +80,7 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
         {
             if (_mapped is null)
             {
-                if(_missingInOptionalProperty == false) return _missingError!;
+                if (_missingInOptionalProperty == false) return _missingError!;
                 return new CanFail<object?>().Succeded(null);
             }
             return _mapped;
