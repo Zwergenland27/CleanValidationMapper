@@ -39,6 +39,18 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
 {
     public RequiredReferenceProperty(string name, bool missingInOptionalProperty = false) : base(name, missingInOptionalProperty) { }
 
+    public RequiredReferenceProperty<TProp> MapRequiredParameter<TProp>(string parameterName) where TProp : notnull
+    {
+        var property = new RequiredReferenceProperty<TProp>(parameterName, _missingInOptionalProperty);
+        AddProperty(property);
+        return property;
+    }
+
+    public void ByCalling(Delegate creationMethod)
+    {
+        _creationMethod = creationMethod;
+    }
+
     public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
     {
         MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;

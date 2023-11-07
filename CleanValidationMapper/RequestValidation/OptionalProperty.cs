@@ -86,7 +86,7 @@ public class OptionalReferenceProperty<T> : OptionalProperty<T>
 
         CanFail<object?> result = new();
         bool missingRequired = false;
-        //TODO: wenn ein required fehlt, kein failure, sondern null zurückgeben!
+
         var properties = CreateProperties(result, ref missingRequired);
         if (result.HasFailed) return result;
 
