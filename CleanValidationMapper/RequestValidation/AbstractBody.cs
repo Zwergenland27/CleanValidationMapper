@@ -1,12 +1,22 @@
 ﻿using System.Linq.Expressions;
+using System.Reflection;
 
 namespace CleanValidationMapper;
 
 public class AbstractBody<TValidated>
 {
-	List<Property> _properties = new();
+    private readonly ConstructorInfo _constructor;
+    List<Property> _properties = new();
 
-	protected RequiredReferenceProperty<T> RequiredProperty<T>(Expression<Func<TValidated, T>> propertyExpression) where T : notnull
+    public AbstractBody()
+    {
+        var constructors = typeof(TValidated).GetConstructors();
+        if (constructors.Count() == 0) throw new InvalidOperationException($"{typeof(TValidated)} must have one constructor");
+        if (constructors.Count() > 1) throw new InvalidOperationException($"{typeof(TValidated)} can only have one constructor");
+        _constructor = constructors[0];
+    }
+
+    protected RequiredReferenceProperty<T> RequiredProperty<T>(Expression<Func<TValidated, T>> propertyExpression) where T : notnull
 	{
 		MemberExpression memberExpression = (MemberExpression) propertyExpression.Body;
 		var property = new RequiredReferenceProperty<T>(memberExpression.Member.Name);
@@ -57,10 +67,7 @@ public class AbstractBody<TValidated>
 
         if (result.HasFailed) return result;
 
-        var constructors = typeof(TValidated).GetConstructors();
-        if (constructors.Count() > 1) throw new InvalidOperationException($"{typeof(TValidated)} can only have one constructor");
-
-        var constructorParameters = constructors[0].GetParameters();
+        var constructorParameters = _constructor.GetParameters();
 
         object?[] parameters = new object?[constructorParameters.Length];
 

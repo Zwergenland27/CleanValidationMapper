@@ -2,55 +2,59 @@
 
 namespace CleanValidationMapper;
 
-public abstract class RequiredProperty<T> : Property<T>
+public abstract class OptionalProperty<T> : Property<T>
 {
-    protected Error? _missingError;
-
-    protected readonly bool _missingInOptionalProperty;
-    public RequiredProperty(string name, bool missingInOptionalProperty = false) : base(name)
-    {
-        _missingInOptionalProperty = missingInOptionalProperty;
-    }
-
-    public void FromParameter(T? value, Error missingError)
+    public OptionalProperty(string name) : base(name) { }
+    public void FromParameter(T? value)
     {
         _directMapped = true;
         _mapped = value;
-        _missingError = missingError;
     }
 
-    protected Dictionary<string, object?> CreateProperties(CanFail<object?> result)
+    private bool IsRequiredProperty(Type propertyType)
+    {
+        return (propertyType.Name == typeof(RequiredReferenceProperty<>).Name);
+    }
+
+    protected Dictionary<string, object?> CreateProperties(CanFail<object?> result, ref bool missingRequired)
     {
         Dictionary<string, object?> properties = new();
+
+        bool missingRequiredLocal = false;
 
         foreach(var property in Properties)
         {
             var creationResult = property.Create();
             result.InheritFailure(creationResult);
             if (!creationResult.HasFailed) properties.Add(property.Name, creationResult.Value);
+
+            if (creationResult.Value is null && IsRequiredProperty(property.GetType()))
+            {
+                missingRequiredLocal = true;
+            }
         }
 
+        missingRequired = missingRequiredLocal;
         return properties;
     }
 }
 
-public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnull
+public class OptionalReferenceProperty<T> : OptionalProperty<T>
 {
-    public RequiredReferenceProperty(string name, bool missingInOptionalProperty = false) : base(name, missingInOptionalProperty) { }
+    public OptionalReferenceProperty(string name) : base(name) { }
 
     public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
     {
         MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
-        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, _missingInOptionalProperty);
+        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, true);
         AddProperty(property);
         return property;
     }
-    //TODO: Wenn in einem Optionalen Parameter => keine Missing Fehlermeldung einbauen, kann ja eh nicht geworfen werden!
 
     public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression, Action<RequiredReferenceProperty<TProp>> propertyBuilder) where TProp : notnull
     {
         MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
-        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, _missingInOptionalProperty);
+        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, true);
         propertyBuilder.Invoke(property);
         AddProperty(property);
         return property;
@@ -77,18 +81,16 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
     {
         if (_directMapped)
         {
-            if (_mapped is null)
-            {
-                if(_missingInOptionalProperty == false) return _missingError!;
-                return new CanFail<object?>().Succeded(null);
-            }
             return _mapped;
         }
 
         CanFail<object?> result = new();
-        var properties = CreateProperties(result);
-
+        bool missingRequired = false;
+        //TODO: wenn ein required fehlt, kein failure, sondern null zurückgeben!
+        var properties = CreateProperties(result, ref missingRequired);
         if (result.HasFailed) return result;
+
+        if(missingRequired) return default(T);
 
         return CreateInstance(properties);
     }
