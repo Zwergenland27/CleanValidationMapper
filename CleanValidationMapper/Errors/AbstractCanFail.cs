@@ -73,6 +73,6 @@ public record AbstractCanFail : ICanFail
 	public AbstractCanFail InheritFailure(AbstractCanFail canFailResult)
 	{
 		if (canFailResult.HasFailed) _errors.AddRange(canFailResult.Errors);
-		return this;
-	}
+        return this;
+    }
 }

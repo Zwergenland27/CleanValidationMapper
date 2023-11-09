@@ -11,6 +11,7 @@ public sealed record CanFail<T> : AbstractCanFail, ICanFail<T>
 
 	public CanFail() : base()
 	{
+		if (typeof(T).IsAssignableTo(typeof(AbstractCanFail))) throw new InvalidOperationException($"You cannot create a CanFail result that contains a {typeof(T)}");
 		_valueSet = false;
 	}
 
@@ -27,10 +28,22 @@ public sealed record CanFail<T> : AbstractCanFail, ICanFail<T>
 		}
 	}
 
-	public CanFail<T> Succeded(T value)
+	public CanFail<T> SetValue(T value)
 	{
-		_valueSet = true;
+        if (value is not null && value.GetType().IsAssignableTo(typeof(AbstractCanFail))) throw new InvalidOperationException($"You cannot set the value of CanFail<{typeof(T)}> to {value.GetType()}");
+        _valueSet = true;
 		_value = value;
+
+		return this;
+	}
+
+	public CanFail<T> Inherit(CanFail<T> result)
+	{
+        InheritFailure(result);
+		if (!HasFailed)
+		{
+			SetValue(result.Value);
+		}
 
 		return this;
 	}
@@ -42,16 +55,6 @@ public sealed record CanFail<T> : AbstractCanFail, ICanFail<T>
 	{
 		var canFail = new CanFail<T>();
 		canFail.Failed(error);
-		return canFail;
-	}
-
-	/// <summary>
-	/// Create <see cref="CanFail<typeparamref name="T"/>"/> with valid parameter <paramref name="value"/>
-	/// </summary>
-	public static implicit operator CanFail<T>(T value)
-	{
-		var canFail = new CanFail<T>();
-		canFail.Succeded(value);
 		return canFail;
 	}
 }
