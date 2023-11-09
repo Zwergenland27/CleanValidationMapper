@@ -10,11 +10,6 @@ public abstract class OptionalProperty<T> : Property<T>
         _mapped = value;
     }
 
-    private bool IsRequiredProperty(Type propertyType)
-    {
-        return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
-    }
-
     protected (CanFail<Dictionary<string, object?>> result, bool missingRequired) CreateProperties()
     {
         CanFail<Dictionary<string, object?>> createAllPropertiesResult = new();
@@ -45,6 +40,12 @@ public abstract class OptionalProperty<T> : Property<T>
 public class OptionalReferenceProperty<T> : OptionalProperty<T>
 {
     public OptionalReferenceProperty(string name) : base(name) { }
+
+    public void ByCalling(Delegate creationMethod, Action<CreationMethod<T>> methodParameters)
+    {
+        _creationMethod = new CreationMethod<T>(creationMethod, true);
+        methodParameters.Invoke(_creationMethod);
+    }
 
     public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
     {

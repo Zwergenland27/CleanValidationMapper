@@ -20,20 +20,30 @@ public abstract class RequiredProperty<T> : Property<T>
         _missingError = missingError;
     }
 
-    protected CanFail<Dictionary<string, object?>> CreateProperties()
+    protected (CanFail<Dictionary<string, object?>> result, bool missingRequired) CreateProperties()
     {
         CanFail<Dictionary<string, object?>> createAllPropertiesResult = new();
         Dictionary<string, object?> properties = new();
+
+        bool missingRequired = false;
 
         foreach (var property in Properties)
         {
             var creationResult = property.Create();
             createAllPropertiesResult.InheritFailure(creationResult);
-            if (!creationResult.HasFailed) properties.Add(property.Name, creationResult.Value);
+            if (!creationResult.HasFailed)
+            {
+                properties.Add(property.Name, creationResult.Value);
+
+                if (creationResult.Value is null && _missingInOptionalProperty && IsRequiredProperty(property.GetType()))
+                {
+                    missingRequired = true;
+                }
+            }
         }
 
         createAllPropertiesResult.SetValue(properties);
-        return createAllPropertiesResult;
+        return (createAllPropertiesResult, missingRequired);
     }
 }
 
@@ -48,9 +58,10 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
         return property;
     }
 
-    public CreationMethod ByCalling(Delegate creationMethod)
+    public void ByCalling(Delegate creationMethod, Action<CreationMethod<T>> methodParameters)
     {
-        _creationMethod = creationMethod;
+        _creationMethod = new CreationMethod<T>(creationMethod);
+        methodParameters.Invoke(_creationMethod);
     }
 
     public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
@@ -102,12 +113,15 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
         }
 
         var propertiesCreationResult = CreateProperties();
-        result.InheritFailure(propertiesCreationResult);
+        result.InheritFailure(propertiesCreationResult.result);
 
         if (result.HasFailed) return result;
+        if (propertiesCreationResult.missingRequired) return result.SetValue(default(T));
 
-        var creationResult = CreateInstance(propertiesCreationResult.Value);
-        if (creationResult.HasFailed) return result;
+        var creationResult = CreateInstance(propertiesCreationResult.result.Value);
+        result.InheritFailure(creationResult);
+
+        if (result.HasFailed) return result;
         return result.SetValue(creationResult.Value);
     }
 }

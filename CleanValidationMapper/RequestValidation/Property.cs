@@ -16,6 +16,11 @@ public abstract class Property
     {
         Name = name;
     }
+
+    protected static bool IsRequiredProperty(Type propertyType)
+    {
+        return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
+    }
 }
 
 public abstract class Property<T> : Property
@@ -51,9 +56,8 @@ public abstract class Property<T> : Property
 
     private InitMethod GetInitMethod()
     {
-        if (_constructor == null)
+        if (_creationMethod is not null)
         {
-            CheckCreationMethod();
             return InitMethod.CreateMethod;
         }
 
@@ -61,28 +65,12 @@ public abstract class Property<T> : Property
         return InitMethod.Constructor;
     }
 
-    private void CheckCreationMethod()
-    {
-        if (_creationMethod == null) throw new InvalidOperationException($"${typeof(T)} must have one public constructor OR a static create method that returns CanFail<${typeof(T)}>");
-
-        if (_creationMethod.Method.ReturnType != typeof(CanFail<T>)) throw new InvalidOperationException($"Creation method must return CanFail<{typeof(T)}>");
-        if (_creationMethod.Method.GetParameters().Count() > _properties.Count())
-        {
-            string missingParameters = "";
-            foreach (var parameter in _creationMethod.Method.GetParameters())
-            {
-                if (!_properties.Any(p => p.Name == parameter.Name)) missingParameters += $"{Environment.NewLine}{typeof(T)}.{parameter.Name}";
-            }
-
-            throw new InvalidOperationException($"Property of type {typeof(T)} can not be created because you are missing following parameters for the creation method {typeof(T)}.{_creationMethod.Method.Name}: {missingParameters}");
-        }
-    }
-
     private void CheckConstructor()
     {
+        if (_constructor is null) throw new InvalidOperationException($"${typeof(T)} must have one public constructor OR a static create method that returns CanFail<${typeof(T)}>");
         if (_multipleConstructors) throw new InvalidOperationException($"{typeof(T)} can only have one constructor");
 
-        if (_constructor!.GetParameters().Count() > _properties.Count())
+        if (_constructor.GetParameters().Count() > _properties.Count())
         {
             string missingProperties = "";
 
@@ -115,16 +103,7 @@ public abstract class Property<T> : Property
         }
         else if(initMethod == InitMethod.CreateMethod)
         {
-            var methodParameters = _creationMethod!.Method.GetParameters();
-
-            object?[] parameters = new object[methodParameters.Length];
-            foreach (var parameter in methodParameters)
-            {
-                if (parameter.Name is null) continue;
-                parameters[parameter.Position] = properties.GetValueOrDefault(parameter.Name);
-            }
-
-            return (CanFail<T>)_creationMethod.DynamicInvoke(parameters)!; ;
+            return _creationMethod!.Execute();
         }
 
         throw new NotImplementedException("If you get this exception something went horribly wrong.");
