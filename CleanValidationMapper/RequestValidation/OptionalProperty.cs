@@ -1,7 +1,6 @@
 ﻿using System.Linq.Expressions;
 
 namespace CleanValidationMapper.RequestValidation;
-
 public abstract class OptionalProperty<T> : Property<T>
 {
     public OptionalProperty(string name) : base(name) { }
@@ -16,26 +15,30 @@ public abstract class OptionalProperty<T> : Property<T>
         return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
     }
 
-    protected Dictionary<string, object?> CreateProperties(CanFail<object?> result, ref bool missingRequired)
+    protected (CanFail<Dictionary<string, object?>> result, bool missingRequired) CreateProperties()
     {
+        CanFail<Dictionary<string, object?>> createAllPropertiesResult = new();
         Dictionary<string, object?> properties = new();
 
-        bool missingRequiredLocal = false;
+        bool missingRequired = false;
 
         foreach (var property in Properties)
         {
             var creationResult = property.Create();
-            result.InheritFailure(creationResult);
-            if (!creationResult.HasFailed) properties.Add(property.Name, creationResult.Value);
-
-            if (creationResult.Value is null && IsRequiredProperty(property.GetType()))
+            createAllPropertiesResult.InheritFailure(creationResult);
+            if (!creationResult.HasFailed)
             {
-                missingRequiredLocal = true;
+                properties.Add(property.Name, creationResult.Value);
+
+                if (creationResult.Value is null && IsRequiredProperty(property.GetType()))
+                {
+                    missingRequired = true;
+                }
             }
         }
 
-        missingRequired = missingRequiredLocal;
-        return properties;
+        createAllPropertiesResult.SetValue(properties);
+        return (createAllPropertiesResult, missingRequired);
     }
 }
 
@@ -79,19 +82,22 @@ public class OptionalReferenceProperty<T> : OptionalProperty<T>
 
     public override CanFail<object?> Create()
     {
+        CanFail<object?> result = new();
         if (_directMapped)
         {
-            return _mapped;
+            return result.SetValue(_mapped);
         }
 
-        CanFail<object?> result = new();
-        bool missingRequired = false;
+        var propertiesCreationResult = CreateProperties();
+        result.InheritFailure(propertiesCreationResult.result);
 
-        var properties = CreateProperties(result, ref missingRequired);
+        if (result.HasFailed) return result;
+        if (propertiesCreationResult.missingRequired) return result.SetValue(default(T));
+
+        var creationResult = CreateInstance(propertiesCreationResult.result.Value);
+        result.InheritFailure(creationResult);
         if (result.HasFailed) return result;
 
-        if (missingRequired) return default(T);
-
-        return CreateInstance(properties);
+        return result.SetValue(creationResult.Value);
     }
 }

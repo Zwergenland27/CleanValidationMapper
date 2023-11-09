@@ -20,18 +20,20 @@ public abstract class RequiredProperty<T> : Property<T>
         _missingError = missingError;
     }
 
-    protected Dictionary<string, object?> CreateProperties(CanFail<object?> result)
+    protected CanFail<Dictionary<string, object?>> CreateProperties()
     {
+        CanFail<Dictionary<string, object?>> createAllPropertiesResult = new();
         Dictionary<string, object?> properties = new();
 
         foreach (var property in Properties)
         {
             var creationResult = property.Create();
-            result.InheritFailure(creationResult);
+            createAllPropertiesResult.InheritFailure(creationResult);
             if (!creationResult.HasFailed) properties.Add(property.Name, creationResult.Value);
         }
 
-        return properties;
+        createAllPropertiesResult.SetValue(properties);
+        return createAllPropertiesResult;
     }
 }
 
@@ -46,7 +48,7 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
         return property;
     }
 
-    public void ByCalling(Delegate creationMethod)
+    public CreationMethod ByCalling(Delegate creationMethod)
     {
         _creationMethod = creationMethod;
     }
@@ -88,21 +90,24 @@ public class RequiredReferenceProperty<T> : RequiredProperty<T> where T : notnul
 
     public override CanFail<object?> Create()
     {
+        CanFail<object?> result = new();
         if (_directMapped)
         {
             if (_mapped is null)
             {
                 if (_missingInOptionalProperty == false) return _missingError!;
-                return new CanFail<object?>().Succeded(null);
+                return result.SetValue((object?)null);
             }
-            return _mapped;
+            return result.SetValue(_mapped);
         }
 
-        CanFail<object?> result = new();
-        var properties = CreateProperties(result);
+        var propertiesCreationResult = CreateProperties();
+        result.InheritFailure(propertiesCreationResult);
 
         if (result.HasFailed) return result;
 
-        return CreateInstance(properties);
+        var creationResult = CreateInstance(propertiesCreationResult.Value);
+        if (creationResult.HasFailed) return result;
+        return result.SetValue(creationResult.Value);
     }
 }

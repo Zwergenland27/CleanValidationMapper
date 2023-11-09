@@ -30,7 +30,7 @@ public abstract class Property<T> : Property
     private readonly ConstructorInfo? _constructor;
     private readonly bool _multipleConstructors = false;
 
-    protected Delegate? _creationMethod;
+    protected CreationMethod<T>? _creationMethod;
 
     public Property(string name) : base(name)
     {
@@ -97,7 +97,6 @@ public abstract class Property<T> : Property
 
     protected CanFail<T> CreateInstance(Dictionary<string, object?> properties)
     {
-        //TODO: hier fehlt irgendwie die Feherbehandlung!
         InitMethod initMethod =  GetInitMethod();
 
         if(initMethod == InitMethod.Constructor)
@@ -110,11 +109,9 @@ public abstract class Property<T> : Property
             {
                 if (parameter.Name is null) continue;
                 parameters[parameter.Position] = properties.GetValueOrDefault(parameter.Name);
-            }
+            } 
 
-            //TODO: es wird nirgends geprüft, ob CanFail 
-
-            return (T)_constructor.Invoke(parameters)!;
+            return new CanFail<T>().SetValue((T)_constructor.Invoke(parameters)!);
         }
         else if(initMethod == InitMethod.CreateMethod)
         {
@@ -127,7 +124,7 @@ public abstract class Property<T> : Property
                 parameters[parameter.Position] = properties.GetValueOrDefault(parameter.Name);
             }
 
-            return (CanFail<T>) _creationMethod.DynamicInvoke(parameters)!;
+            return (CanFail<T>)_creationMethod.DynamicInvoke(parameters)!; ;
         }
 
         throw new NotImplementedException("If you get this exception something went horribly wrong.");
