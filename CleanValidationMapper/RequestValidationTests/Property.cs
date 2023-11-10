@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace CleanValidationMapper.RequestValidation;
+namespace CleanValidationMapper.RequestValidationTests;
 
 public enum InitMethod
 {
@@ -19,7 +19,7 @@ public abstract class Property
 
     protected static bool IsRequiredProperty(Type propertyType)
     {
-        return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
+        return propertyType.Name == typeof(RequiredReference<>).Name;
     }
 }
 

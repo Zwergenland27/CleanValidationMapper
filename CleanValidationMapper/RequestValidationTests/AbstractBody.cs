@@ -1,20 +1,18 @@
-﻿using CleanValidationMapper.RequestValidation;
-
-namespace CleanValidationMapper;
+﻿namespace CleanValidationMapper.RequestValidationTests;
 
 public abstract class AbstractBody<TValidated> where TValidated : notnull
 {
-    private readonly RequiredReferenceProperty<TValidated> _propertyBuilder;
+    private readonly RequiredReference<TValidated> _propertyBuilder;
 
     public AbstractBody()
     {
-        _propertyBuilder = new RequiredReferenceProperty<TValidated>(nameof(TValidated));
+        _propertyBuilder = new RequiredReference<TValidated>(nameof(TValidated));
     }
 
-    protected abstract void Configure(RequiredReferenceProperty<TValidated> propertyBuilder);
+    protected abstract void Configure(RequiredReference<TValidated> propertyBuilder);
 
     public CanFail<TValidated> Validate()
-	{
+    {
         var result = new CanFail<TValidated>();
 
         Configure(_propertyBuilder);

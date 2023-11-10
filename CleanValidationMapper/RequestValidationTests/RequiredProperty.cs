@@ -1,13 +1,23 @@
-﻿using System.Linq.Expressions;
+﻿using CleanValidationMapper.Errors;
+using System.Linq.Expressions;
 
-namespace CleanValidationMapper.RequestValidation;
-public abstract class OptionalProperty<T> : Property<T>
+namespace CleanValidationMapper.RequestValidationTests;
+
+public abstract class RequiredProperty<T> : Property<T>
 {
-    public OptionalProperty(string name) : base(name) { }
-    public void FromParameter(T? value)
+    protected Error? _missingError;
+
+    protected readonly bool _missingInOptionalProperty;
+    public RequiredProperty(string name, bool missingInOptionalProperty = false) : base(name)
+    {
+        _missingInOptionalProperty = missingInOptionalProperty;
+    }
+
+    public void FromParameter(T? value, Error missingError)
     {
         _directMapped = true;
         _mapped = value;
+        _missingError = missingError;
     }
 
     protected (CanFail<Dictionary<string, object?>> result, bool missingRequired) CreateProperties()
@@ -25,7 +35,7 @@ public abstract class OptionalProperty<T> : Property<T>
             {
                 properties.Add(property.Name, creationResult.Value);
 
-                if (creationResult.Value is null && IsRequiredProperty(property.GetType()))
+                if (creationResult.Value is null && _missingInOptionalProperty && IsRequiredProperty(property.GetType()))
                 {
                     missingRequired = true;
                 }
@@ -37,28 +47,36 @@ public abstract class OptionalProperty<T> : Property<T>
     }
 }
 
-public class OptionalReferenceProperty<T> : OptionalProperty<T>
+public class RequiredReference<T> : RequiredProperty<T> where T : notnull
 {
-    public OptionalReferenceProperty(string name) : base(name) { }
+    public RequiredReference(string name, bool missingInOptionalProperty = false) : base(name, missingInOptionalProperty) { }
 
-    public void ByCalling(Delegate creationMethod, Action<CreationMethod<T>> methodParameters)
+    public RequiredReference<TProp> MapRequiredParameter<TProp>(string parameterName) where TProp : notnull
     {
-        _creationMethod = new CreationMethod<T>(creationMethod, true);
-        methodParameters.Invoke(_creationMethod);
-    }
-
-    public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
-    {
-        MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
-        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, true);
+        var property = new RequiredReference<TProp>(parameterName, _missingInOptionalProperty);
         AddProperty(property);
         return property;
     }
 
-    public RequiredReferenceProperty<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression, Action<RequiredReferenceProperty<TProp>> propertyBuilder) where TProp : notnull
+    public void ByCalling(Delegate creationMethod, Action<CreationMethod<T>> methodParameters)
+    {
+        _creationMethod = new CreationMethod<T>(creationMethod);
+        methodParameters.Invoke(_creationMethod);
+    }
+
+    public RequiredReference<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression) where TProp : notnull
     {
         MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
-        var property = new RequiredReferenceProperty<TProp>(memberExpression.Member.Name, true);
+        var property = new RequiredReference<TProp>(memberExpression.Member.Name, _missingInOptionalProperty);
+        AddProperty(property);
+        return property;
+    }
+    //TODO: Wenn in einem Optionalen Parameter => keine Missing Fehlermeldung einbauen, kann ja eh nicht geworfen werden!
+
+    public RequiredReference<TProp> MapRequired<TProp>(Expression<Func<T, TProp>> propertyExpression, Action<RequiredReference<TProp>> propertyBuilder) where TProp : notnull
+    {
+        MemberExpression memberExpression = (MemberExpression)propertyExpression.Body;
+        var property = new RequiredReference<TProp>(memberExpression.Member.Name, _missingInOptionalProperty);
         propertyBuilder.Invoke(property);
         AddProperty(property);
         return property;
@@ -86,6 +104,11 @@ public class OptionalReferenceProperty<T> : OptionalProperty<T>
         CanFail<object?> result = new();
         if (_directMapped)
         {
+            if (_mapped is null)
+            {
+                if (_missingInOptionalProperty == false) return _missingError!;
+                return result.SetValue((object?)null);
+            }
             return result.SetValue(_mapped);
         }
 
@@ -97,8 +120,8 @@ public class OptionalReferenceProperty<T> : OptionalProperty<T>
 
         var creationResult = CreateInstance(propertiesCreationResult.result.Value);
         result.InheritFailure(creationResult);
-        if (result.HasFailed) return result;
 
+        if (result.HasFailed) return result;
         return result.SetValue(creationResult.Value);
     }
 }

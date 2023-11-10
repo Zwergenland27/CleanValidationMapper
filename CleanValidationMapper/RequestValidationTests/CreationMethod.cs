@@ -2,7 +2,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace CleanValidationMapper.RequestValidation;
+namespace CleanValidationMapper.RequestValidationTests;
 
 public class CreationMethod<T>
 {
@@ -21,7 +21,7 @@ public class CreationMethod<T>
 
     private static bool IsRequiredProperty(Type propertyType)
     {
-        return propertyType.Name == typeof(RequiredReferenceProperty<>).Name;
+        return propertyType.Name == typeof(RequiredReference<>).Name;
     }
 
     private string NextParameterName()
@@ -100,17 +100,17 @@ public class CreationMethod<T>
 
         return ExecuteCreate(propertiesCreationResult.result.Value);
     }
-    public RequiredReferenceProperty<TProp> AddRequired<TProp>() where TProp : notnull
+    public RequiredReference<TProp> AddRequired<TProp>() where TProp : notnull
     {
-        var property = new RequiredReferenceProperty<TProp>(NextParameterName(), _missingInOptionalProperty);
+        var property = new RequiredReference<TProp>(NextParameterName(), _missingInOptionalProperty);
         _parameters.Add(property);
         return property;
     }
     //TODO: Wenn in einem Optionalen Parameter => keine Missing Fehlermeldung einbauen, kann ja eh nicht geworfen werden!
 
-    public RequiredReferenceProperty<TProp> AddRequired<TProp>(Action<RequiredReferenceProperty<TProp>> propertyBuilder) where TProp : notnull
+    public RequiredReference<TProp> AddRequired<TProp>(Action<RequiredReference<TProp>> propertyBuilder) where TProp : notnull
     {
-        var property = new RequiredReferenceProperty<TProp>(NextParameterName(), _missingInOptionalProperty);
+        var property = new RequiredReference<TProp>(NextParameterName(), _missingInOptionalProperty);
         propertyBuilder.Invoke(property);
         _parameters.Add(property);
         return property;
