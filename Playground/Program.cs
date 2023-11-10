@@ -1,94 +1,201 @@
-﻿// See https://aka.ms/new-console-template for more information
-using CleanValidationMapper;
+﻿using CleanValidationMapper;
 using CleanValidationMapper.Errors;
-using CleanValidationMapper.RequestValidation;
+using CleanValidationMapper.InputValidation;
+using CleanValidationMapper.InputValidation.Property;
 
-var body = new Body("1", "2", "3", "4", null);
-var res = body.Validate();
-Console.WriteLine("Tst");
-public class Body : AbstractBody<Test>
+#region Direct
+class DirectReferenceTests : ReturnsReference<DirectCommand>
 {
-    private RequiredReferenceProperty<CustomParam> customParamBuilder;
-    public Body(string? param, string? param2, string? param3, string? param4, string? param5)
+    public DirectReferenceTests(string? directRequiredReference, string? directOptionalReference, int? directRequiredStruct, int? directOptionalStruct)
     {
-        Param = param;
-        Param2 = param2;
-        Param3 = param3;
-        Param4 = param4;
-        Param5 = param5;
+        DirectRequiredReference = directRequiredReference;
+        DirectOptionalReference = directOptionalReference;
+        DirectRequiredStruct = directRequiredStruct;
+        DirectOptionalStruct = directOptionalStruct;
     }
 
-    public string? Param { get; }
-    public string? Param2 { get; }
-    public string? Param3 { get; }
-    public string? Param4 { get; }
-    public string? Param5 { get; }
+    public string? DirectRequiredReference { get; }
+    public string? DirectOptionalReference { get; }
+    public int? DirectRequiredStruct { get; }
+    public int? DirectOptionalStruct { get; }
 
-    protected override void Configure(RequiredReferenceProperty<Test> propertyBuilder)
+    protected override void Configure(RequiredReferenceBuilder<DirectCommand> propertyBuilder)
     {
-        propertyBuilder.MapRequired(t => t.Param2, pb =>
-        {
-            pb.MapRequired(cp => cp.Titel)
-               .FromParameter(Param3, Error.Validation("Titel missing", ""));
-            pb.MapRequired(cp => cp.Value, cb =>
-            {
-                cb.MapRequired(Wurzel => Wurzel.Wert)
-                   .FromParameter(Param2, Error.Validation("1 fehlt", ""));
+        propertyBuilder.MapRequiredReference(c => c.DirectRequiredReference)
+             .FromParameter(DirectRequiredReference, Error.Validation("DirectRequiredReference missing", ""));
+        propertyBuilder.MapOptionalReference(c => c.DirectRequiredReference)
+            .FromParameter(DirectOptionalReference);
 
-                cb.MapRequired(Wurzel => Wurzel.Test)
-                    .MapRequired(Primitiv => Primitiv.Test)
-                    .FromParameter(Param4, Error.Validation("Primitiv fehlt", ""));
-            });
-        });
-
-        propertyBuilder.MapRequired(t => t.Param)
-            .FromParameter(Param, Error.Validation("Parameter missing", ""));
-
-        propertyBuilder.MapOptional (t => t.Validated)
-            .ByCalling(ValidatedParam.Create, methodParameters =>
-            {
-                methodParameters.AddRequired<string>().FromParameter(Param5, Error.Validation("Paramter 5 missing", ""));
-            });
+        propertyBuilder.MapRequiredStruct(c => c.DirectRequiredStruct)
+            .FromParameter(DirectRequiredStruct, Error.Validation("DirectRequiredStruct missing", ""));
+        propertyBuilder.MapOptionalStruct(c => c.DirectOptionalStruct)
+            .FromParameter(DirectOptionalStruct);
     }
-
-    //public void Validated(string? parameter)
-    //{
-    //    _propertyBuilder.MapRequired(t => t.Validated, vb =>
-    //    {
-    //        vb.MapRequiredParameter<string>("var1")
-    //            .FromParameter(parameter, Error.Validation("validated missing", ""));
-    //        vb.ByCalling(ValidatedParam.Create);
-    //    });
-
-    //}
 }
 
-public record Primitiv(string Test);
+public record DirectCommand(string DirectRequiredReference, string? DirectOptionalReference, int DirectRequiredStruct, int? DirectOptionalStruct);
 
-public record Wurzel(string Wert, Primitiv Test); 
+#endregion
 
-public record CustomParam(Wurzel Value, string Titel);
-
-public record ValidatedParam
+#region Nested
+class NestedReferenceTests : ReturnsReference<NestedCommand>
 {
-    private ValidatedParam(string value)
+    public NestedReferenceTests(
+        string? requiredAReference, string? optionalAReference,
+        int? requiredAStruct, int? optionalAStruct,
+        string? requiredBReference, string? optionalBReference,
+        int? requiredBStruct, int? optionalBStruct)
     {
+        RequiredAReference = requiredAReference;
+        OptionalAReference = optionalAReference;
+        RequiredAStruct = requiredAStruct;
+        OptionalAStruct = optionalAStruct;
+        RequiredBReference = requiredBReference;
+        OptionalBReference = optionalBReference;
+        RequiredBStruct = requiredBStruct;
+        OptionalBStruct = optionalBStruct;
+    }
+
+    public string? RequiredAReference { get; }
+    public string? OptionalAReference { get; }
+    public int? RequiredAStruct { get; }
+    public int? OptionalAStruct { get; }
+    public string? RequiredBReference { get; }
+    public string? OptionalBReference { get; }
+    public int? RequiredBStruct { get; }
+    public int? OptionalBStruct { get; }
+
+    protected override void Configure(RequiredReferenceBuilder<NestedCommand> propertyBuilder)
+    {
+        propertyBuilder.MapRequiredReference(c => c.RequiredAReference)
+            .MapRequiredReference(ar => ar.Value)
+            .FromParameter(RequiredAReference, Error.Validation("RequiredAReference missing", ""));
+        propertyBuilder.MapOptionalReference(c => c.OptionalAReference)
+           .MapRequiredReference(ar => ar.Value)
+           .FromParameter(OptionalAReference);
+
+        propertyBuilder.MapRequiredReference(c => c.RequiredAStruct)
+            .MapRequiredStruct(ast => ast.Value)
+            .FromParameter(RequiredAStruct, Error.Validation("RequiredAStruct missing", ""));
+        propertyBuilder.MapOptionalReference(c => c.OptionalAStruct)
+          .MapRequiredStruct(ast => ast.Value)
+          .FromParameter(OptionalAStruct);
+
+
+
+        propertyBuilder.MapRequiredStruct(c => c.RequiredBReference)
+            .MapRequiredReference(ar => ar.Value)
+            .FromParameter(RequiredBReference, Error.Validation("RequiredBReference missing", ""));
+        propertyBuilder.MapOptionalStruct(c => c.OptionalBReference)
+           .MapRequiredReference(ar => ar.Value)
+           .FromParameter(OptionalBReference);
+
+        propertyBuilder.MapRequiredStruct(c => c.RequiredBStruct)
+            .MapRequiredStruct(br => br.Value)
+            .FromParameter(RequiredAStruct, Error.Validation("RequiredBStruct missing", ""));
+        propertyBuilder.MapOptionalStruct(c => c.OptionalBStruct)
+          .MapRequiredStruct(br => br.Value)
+          .FromParameter(OptionalBStruct);
+    }
+}
+
+public record AReference(string Value);
+
+public record AStruct(int Value);
+
+public record struct BReference(string Value);
+
+public record struct BStruct(int Value);
+
+public record NestedCommand(
+    AReference RequiredAReference, AReference? OptionalAReference,
+    AStruct RequiredAStruct, AStruct? OptionalAStruct,
+    BReference RequiredBReference, BReference? OptionalBReference,
+    BStruct RequiredBStruct, BStruct? OptionalBStruct);
+
+#endregion
+
+#region Direct CanFail
+
+public class DirectCanFailTest : ReturnsReference<Test>
+{
+    public DirectCanFailTest(string? text, int? value, string? innerTest, int? innerInt)
+    {
+        Text = text;
         Value = value;
+        InnerTest = innerTest;
+        InnerInt = innerInt;
     }
 
-    public string Value { get; set; }
+    public string? Text { get; }
+    public int? Value { get; }
+    public string? InnerTest { get; }
+    public int? InnerInt { get; }
 
-    public static void Furz()
+    protected override void Configure(RequiredReferenceBuilder<Test> propertyBuilder)
     {
+        propertyBuilder.MapRequiredReference(t => t.Param1)
+            .ByCalling(CanFailDirect.Create, methodBuilder =>
+            {
+                methodBuilder.AddRequiredReference<string>().FromParameter(Text, Error.Validation("Text missing", ""));
+                methodBuilder.AddRequiredStruct<int>().FromParameter(Value, Error.Validation("", ""));
+                methodBuilder.AddRequiredReference<InnerParameter>(innerBuilder =>
+                {
+                     innerBuilder.MapRequiredReference(ip => ip.innertest)
+                        .FromParameter(InnerTest, Error.Validation("InnerTest missing", ""));
 
-    }
-    public static CanFail<ValidatedParam> Create(string var1)
-    {
-        CanFail<ValidatedParam> result = new();
-        if (var1 == "fail") return Error.Validation("ValidatedParam.Fail", "");
-
-        return result.SetValue(new ValidatedParam(var1));
+                    innerBuilder.MapOptionalStruct(ip => ip.innerInt)
+                        .FromParameter(InnerInt);
+                });
+            });
+        propertyBuilder.MapOptionalReference(t => t.Param2)
+           .ByCalling(CanFailDirect.Create, methodBuilder =>
+           {
+               methodBuilder.AddRequiredReference<string>().FromParameter(Text);
+               methodBuilder.AddRequiredStruct<int>().FromParameter(Value);
+           });
     }
 }
 
-public record Test(string Param, CustomParam Param2, ValidatedParam? Validated);
+public record InnerParameter(string innertest, int? innerInt);
+
+public class CanFailDirect
+{
+    private CanFailDirect(string text, int value, InnerParameter inner)
+    {
+        Text = text;
+
+        Value = value;
+        Inner = inner;
+    }
+
+    public string Text { get; set; }
+
+    public int Value { get; set; }
+    public InnerParameter Inner { get; }
+
+    public static CanFail<CanFailDirect> Create(string text, int value, InnerParameter inner)
+    {
+        CanFail<CanFailDirect> result = new();
+        if(text == "failure")
+        {
+            return Error.Validation("Text.Failure", "text is invalid");
+        }
+
+        if(value < 0)
+        {
+            return Error.Conflict("test", "");
+        }
+
+        if(inner.innertest == "innerfailure")
+        {
+            return Error.Validation("Test2", "");
+        }
+
+        return result.SetValue(new CanFailDirect(text, value, inner));
+    }
+}
+
+public record Test(CanFailDirect Param1, CanFailDirect? Param2);
+
+#endregion
