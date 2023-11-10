@@ -1,5 +1,4 @@
-﻿using CleanValidationMapper;
-using CleanValidationMapper.Errors;
+﻿using CleanValidationMapper.Errors;
 using Moq;
 
 namespace CleanValidationMapperTests.TestData;
